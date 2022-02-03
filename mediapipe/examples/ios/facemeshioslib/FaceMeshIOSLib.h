@@ -3,6 +3,22 @@
 #import <CoreVideo/CoreVideo.h>
 #import <Foundation/Foundation.h>
 
+@interface MeshWrapper : NSObject
+@property (nonatomic) NSArray *vertexBuffer;
+@property (nonatomic) NSArray *indexBuffer; 
+@end
+
+@interface MatrixWrapper : NSObject
+@property (nonatomic) int32_t rows;
+@property (nonatomic) int32_t cols;
+@property (nonatomic) NSArray *data;
+@end
+
+@interface FaceGeometryWrapper : NSObject
+@property (nonatomic) MeshWrapper *meshWrapper;
+@property (nonatomic) MatrixWrapper *poseTransformMatrix;
+@end
+
 @interface FaceMeshIOSLibFaceLandmarkPoint : NSObject
 @property (nonatomic) float x;
 @property (nonatomic) float y;
@@ -19,14 +35,7 @@
 
 @protocol FaceMeshIOSLibDelegate <NSObject>
 @optional
-/** 
- * Array of faces, with faces represented by arrays of face landmarks 
-*/
-- (void)didReceiveFaces:(NSArray <NSArray<FaceMeshIOSLibFaceLandmarkPoint *>*>*)faces;
-/** 
- * Array of faces, with faces represented by arrays of face landmarks 
-*/
-- (void)didReceiveFaceBoxes:(NSArray <FaceMeshIOSLibNormalizedRect *>*)faces;
+- (void)didRecieveMultiFaceGeometry:(NSArray <FaceGeometryWrapper *>*)multiFaceGeometry;
 @end
 
 @interface FaceMeshIOSLib : NSObject

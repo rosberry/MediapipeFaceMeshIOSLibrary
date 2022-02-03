@@ -103,6 +103,11 @@ ios_framework(
     deps = [
         ":FaceMeshIOSLib",
         "@ios_opencv//:OpencvFramework",
+# 	"//conditions:default": [
+	"//mediapipe/framework/formats:matrix_data_cc_proto",
+        "//mediapipe/graphs/face_effect:face_effect_gpu_deps",
+        "//mediapipe/modules/face_geometry/protos:face_geometry_cc_proto",
+#        ],
     ],
 )
 
@@ -118,7 +123,16 @@ objc_library(
     data = [
         "//mediapipe/graphs/face_mesh:pure_face_mesh_mobile_gpu.binarypb",
         "//mediapipe/modules/face_detection:face_detection_short_range.tflite",
+	        "//mediapipe/graphs/face_effect:face_effect_gpu.binarypb",
+        "//mediapipe/graphs/face_effect/data:facepaint.pngblob",
+        "//mediapipe/graphs/face_effect/data:glasses.binarypb",
+        "//mediapipe/graphs/face_effect/data:glasses.pngblob",
+        # "//mediapipe/modules/face_detection:face_detection_front.tflite",
+        "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata.binarypb",
+        "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata_detection.binarypb",
+        "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata_landmarks.binarypb",
         "//mediapipe/modules/face_landmark:face_landmark.tflite",
+
     ],
     deps = [
         "//mediapipe/objc:mediapipe_framework_ios",
@@ -131,6 +145,9 @@ objc_library(
         "//conditions:default": [
             "//mediapipe/graphs/face_mesh:mobile_calculators",
             "//mediapipe/framework/formats:landmark_cc_proto",
+            "//mediapipe/framework/formats:matrix_data_cc_proto",
+            "//mediapipe/graphs/face_effect:face_effect_gpu_deps",
+            "//mediapipe/modules/face_geometry/protos:face_geometry_cc_proto",
 #            "//mediapipe/examples/facial_search/graphs:gpu_calculators",
 #            "//mediapipe/examples/facial_search:embeddings_database",
         ],
