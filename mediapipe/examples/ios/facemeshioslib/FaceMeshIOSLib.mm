@@ -153,13 +153,13 @@ static const int kMatrixTranslationZIndex = 14;
 
 			NSMutableArray<NSNumber *> *vertexBuffer = [NSMutableArray new];
 			for (int i = 0; i < geometry.mesh().vertex_buffer().size(); i++) {
-				[vertexBuffer addObject:[NSNumber numberWithUnsignedInteger:geometry.mesh().vertex_buffer()[i]]];
+				[vertexBuffer addObject:[NSNumber numberWithFloat:geometry.mesh().vertex_buffer()[i]]];
 			}
 			mesh.vertexBuffer = vertexBuffer;
 
 			NSMutableArray<NSNumber *> *indexBuffer = [NSMutableArray new];
 			for (int i = 0; i < geometry.mesh().index_buffer().size(); i++) {
-				[vertexBuffer addObject:[NSNumber numberWithUnsignedInteger:geometry.mesh().index_buffer()[i]]];
+				[indexBuffer addObject:[NSNumber numberWithUnsignedInteger:geometry.mesh().index_buffer()[i]]];
 			}
 			mesh.indexBuffer = indexBuffer;
 
