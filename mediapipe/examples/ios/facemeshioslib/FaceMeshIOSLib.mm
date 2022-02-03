@@ -1,4 +1,16 @@
-// Copyright 2021 Switt Kongdachalert
+// Copyright 2020 The MediaPipe Authors.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #import "FaceMeshIOSLib.h"
 
@@ -16,15 +28,19 @@
 static NSString* const kGraphName = @"face_effect_gpu";
 
 static const char* kInputStream = "input_video";
-static const char* kOutputStream = "output_video";
 static const char* kMultiFaceGeometryStream = "multi_face_geometry";
 static const char* kVideoQueueLabel = "com.google.mediapipe.example.videoQueue";
 static const char* kUseFaceDetectionInputSourceInputSidePacket = "use_face_detection_input_source";
 
 static const BOOL kUseFaceDetectionInputSource = NO;
+static const int kMatrixTranslationZIndex = 14;
 
 @interface FaceMeshIOSLib () <MPPGraphDelegate>
+
+// The MediaPipe graph currently in use. Initialized in viewDidLoad, started in viewWillAppear: and
+// sent video frames on _videoQueue.
 @property(nonatomic) MPPGraph* graph;
+
 @end
 
 @implementation FaceMeshIOSLib {
@@ -68,31 +84,31 @@ static const BOOL kUseFaceDetectionInputSource = NO;
   // Create MediaPipe graph with mediapipe::CalculatorGraphConfig proto object.
   MPPGraph* newGraph = [[MPPGraph alloc] initWithGraphConfig:config];
   [newGraph addSidePackets:side_packets];
-  [newGraph addFrameOutputStream:kOutputStream outputPacketType:MPPPacketTypePixelBuffer];
   [newGraph addFrameOutputStream:kMultiFaceGeometryStream outputPacketType:MPPPacketTypeRaw];
   return newGraph;
 }
 
+#pragma mark - UIViewController methods
+
 - (instancetype)init {
   self = [super init];
-  if (self) {
-    self.graph = [[self class] loadGraphFromResource:kGraphName];
-    self.graph.delegate = self;
-    
-    // // Set maxFramesInFlight to a small value to avoid memory contention
-    // // for real-time processing.
-    self.graph.maxFramesInFlight = 1;
-    NSLog(@"inited graph %@", kGraphName);
+  if (!self) {
+    return self;
   }
+
+  self.graph = [[self class] loadGraphFromResource:kGraphName];
+  self.graph.delegate = self;
+  // Set maxFramesInFlight to a small value to avoid memory contention for real-time processing.
+  // self.graph.maxFramesInFlight = 1;
   return self;
 }
 
 - (void)startGraph {
+  // Start running self.graph.
   NSError* error;
   if (![self.graph startWithError:&error]) {
     NSLog(@"Failed to start graph: %@", error);
   }
-  NSLog(@"Started graph %@", kGraphName);
 }
 
 #pragma mark - MPPGraphDelegate methods
@@ -101,10 +117,13 @@ static const BOOL kUseFaceDetectionInputSource = NO;
 - (void)mediapipeGraph:(MPPGraph*)graph
     didOutputPixelBuffer:(CVPixelBufferRef)pixelBuffer
               fromStream:(const std::string&)streamName {
-  NSLog(@"recv pixelBuffer from %@", @(streamName.c_str()));
 }
 
 // Receives a raw packet from the MediaPipe graph. Invoked on a MediaPipe worker thread.
+//
+// This callback demonstrates how the output face geometry packet can be obtained and used in an
+// iOS app. As an example, the Z-translation component of the face pose transform matrix is logged
+// for each face being equal to the approximate distance away from the camera in centimeters.
 - (void)mediapipeGraph:(MPPGraph*)graph
      didOutputPacket:(const ::mediapipe::Packet&)packet
           fromStream:(const std::string&)streamName {
@@ -156,18 +175,17 @@ static const BOOL kUseFaceDetectionInputSource = NO;
   const auto ts =
       mediapipe::Timestamp(self.timestamp++ * mediapipe::Timestamp::kTimestampUnitsPerSecond);
   NSError* err = nil;
-  NSLog(@"%zu", self.timestamp);
 
   auto sent = [self.graph sendPixelBuffer:imageBuffer
                                         intoStream:kInputStream
                                         packetType:MPPPacketTypePixelBuffer
-                                         timestamp:ts
-                                    allowOverwrite:NO
-                                             error:&err];
+                                         timestamp:ts];
+//                                    allowOverwrite:NO
+//                                             error:&err];
 
-  if (err) {
-    NSLog(@"sendPixelBuffer error: %@", err);
-  }
+//  if (err) {
+//    NSLog(@"sendPixelBuffer error: %@", err);
+//  }
 }
 
 @end

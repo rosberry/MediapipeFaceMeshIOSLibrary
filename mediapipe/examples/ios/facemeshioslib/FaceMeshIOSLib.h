@@ -36,12 +36,20 @@
 @protocol FaceMeshIOSLibDelegate <NSObject>
 @optional
 - (void)didRecieveMultiFaceGeometry:(NSArray <FaceGeometryWrapper *>*)multiFaceGeometry;
+/** 
+ * Array of faces, with faces represented by arrays of face landmarks 
+*/
+- (void)didReceiveFaces:(NSArray <NSArray<FaceMeshIOSLibFaceLandmarkPoint *>*>*)faces;
+/** 
+ * Array of faces, with faces represented by arrays of face landmarks 
+*/
+- (void)didReceiveFaceBoxes:(NSArray <FaceMeshIOSLibNormalizedRect *>*)faces;
 @end
 
 @interface FaceMeshIOSLib : NSObject
 - (instancetype)init;
 - (void)startGraph;
-- (void)processVideoFrame:(CVPixelBufferRef)imageBuffer;
+- (void)processVideoFrame:(CVPixelBufferRef)imageBuffe;
 @property(weak, nonatomic) id<FaceMeshIOSLibDelegate> delegate;
 @property(nonatomic) size_t timestamp;
 @end
