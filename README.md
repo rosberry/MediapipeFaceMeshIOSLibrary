@@ -4,6 +4,32 @@ title: Home
 nav_order: 1
 ---
 
+# This is a fork of MediaPipe to demonstrate building MediaPipe as a Framework for iOS, in this case, the FaceMesh model
+- This builds an XCFramework into ./frameworkbuild/FaceMeshIOSLibFramework/xcframework
+    - The XCFramework contains both arm64 and x86_64 (iOS Simulator) parts, so you can use this on both real devices and on the iOS simulator
+- I've created the Objective-C file for the framework in //mediapipe/examples/ios/facemeshioslib
+
+# Usage
+## Building
+- prerequisites
+    - You need to have Google's Bazel installed. Personally I install via node (`npm install -g bazel`).
+- run `./BUILD_FACE_MESH_XCFRAMEWORK.sh`, the resulting framework should then appear in ./frameworkbuild/FaceMeshIOSLibFramework/xcframework/FaceMeshIOSLibFramework.xcframework
+    - Copy the framework and use it in your projects. You're welcome.
+    - Framework usage : `#import <FaceMeshIOSLibFramework/FaceMeshIOSLibFramework.h>`
+        - only one class : FaceMeshIOSLib
+            - delegate callback gives you an array of detected faces (But there's only one face configured in my graph.. so there's at most length 1)
+                - each face is an array of 468 `FaceMeshIOSLibFaceLandmarkPoint` points (x,y,z)
+
+## Resources
+- I couldn't have done this without these sources
+    - This great example : https://powderapp.medium.com/mediapipe-tutorial-find-memes-that-match-your-facial-expression-9bf598da98c0
+        - Mentioned from issue [here](https://github.com/google/mediapipe/issues/364)
+    - Mediapipe graph visualizer : https://viz.mediapipe.dev
+    - Understanding mediapipe graphs/calculators : I find it great to start here https://google.github.io/mediapipe/framework_concepts/calculators.html
+    - [This Stackoverflow thread for pointing out how to create XCFrameworks](https://stackoverflow.com/questions/63267897/building-for-ios-simulator-but-the-linked-framework-framework-was-built/65613941#65613941)
+        - I tried using good ol' `lipo -create ... -output ...` with the binaries and putting it in a normal `.framework`. XCode 12.4 refuses to build with the error `Building for iOS Simulator, but the linked and embedded framework was built for iOS + iOS Simulator`. It seemed not so long ago that I last used the `lipo` method. Things change so fast.
+
+
 ![MediaPipe](docs/images/mediapipe_small.png)
 
 --------------------------------------------------------------------------------
