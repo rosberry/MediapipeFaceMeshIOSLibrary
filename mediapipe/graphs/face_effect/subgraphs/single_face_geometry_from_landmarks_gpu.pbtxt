@@ -64,18 +64,18 @@ node {
 }
 
 # Applies smoothing to the single set of face landmarks.
-# node {
-#   calculator: "FaceLandmarksSmoothing"
-#   input_stream: "NORM_LANDMARKS:face_landmarks"
-#   input_stream: "IMAGE_SIZE:input_image_size"
-#   output_stream: "NORM_FILTERED_LANDMARKS:smoothed_face_landmarks"
-# }
+node {
+  calculator: "FaceLandmarksSmoothing"
+  input_stream: "NORM_LANDMARKS:face_landmarks"
+  input_stream: "IMAGE_SIZE:input_image_size"
+  output_stream: "NORM_FILTERED_LANDMARKS:smoothed_face_landmarks"
+}
 
 # Puts the single set of smoothed landmarks back into a collection to simplify
 # passing the result into the `FaceGeometryFromLandmarks` subgraph.
 node {
   calculator: "ConcatenateLandmarListVectorCalculator"
-  input_stream: "face_landmarks"
+  input_stream: "smoothed_face_landmarks"
   output_stream: "multi_smoothed_face_landmarks"
 }
 
