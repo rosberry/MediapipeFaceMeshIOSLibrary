@@ -25,7 +25,7 @@ node {
   node_options: {
     [type.googleapis.com/mediapipe.FaceGeometryEnvGeneratorCalculatorOptions] {
       environment: {
-        origin_point_location: TOP_LEFT_CORNER
+        origin_point_location: TOP_LEFT_CORNER 
         perspective_camera: {
           vertical_fov_degrees: 63.0  # 63 degrees
           near: 1.0  # 1cm
@@ -40,7 +40,7 @@ node {
 # through `use_face_detection_input_source`.
 node {
   calculator: "SwitchContainer"
-  input_stream: "IMAGE:input_video"
+  input_stream: "IMAGE:throttled_input_video"
   input_side_packet: "ENABLE:use_face_detection_input_source"
   input_side_packet: "ENVIRONMENT:environment"
   output_stream: "MULTI_FACE_GEOMETRY:multi_face_geometry"
@@ -54,5 +54,16 @@ node {
       }
     }
   }
+}
+
+node {
+  calculator: "FlowLimiterCalculator"
+  input_stream: "input_video"
+  input_stream: "FINISHED:multi_face_geometry"
+  input_stream_info: {
+    tag_index: "FINISHED"
+    back_edge: true
+  }
+  output_stream: "throttled_input_video"
 }
 
