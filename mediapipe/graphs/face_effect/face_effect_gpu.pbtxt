@@ -3,12 +3,6 @@
 # GPU buffer. (GpuBuffer)
 input_stream: "input_video"
 
-# Indicates whether to use the face detection as the input source. (bool)
-#
-# If `true`, the face detection pipeline will be used to produce landmarks.
-# If `false`, the face landmark pipeline will be used to produce landmarks.
-input_side_packet: "use_face_detection_input_source"
-
 # A list of geometry data for a single detected face.
 #
 # NOTE: there will not be an output packet in this stream for this particular
@@ -36,24 +30,11 @@ node {
   }
 }
 
-# Computes the face geometry for a single face. The input source is defined
-# through `use_face_detection_input_source`.
 node {
-  calculator: "SwitchContainer"
+  calculator: "SingleFaceGeometryFromLandmarksGpu"
   input_stream: "IMAGE:throttled_input_video"
-  input_side_packet: "ENABLE:use_face_detection_input_source"
   input_side_packet: "ENVIRONMENT:environment"
   output_stream: "MULTI_FACE_GEOMETRY:multi_face_geometry"
-  node_options: {
-    [type.googleapis.com/mediapipe.SwitchContainerOptions] {
-      contained_node: {
-        calculator: "SingleFaceGeometryFromLandmarksGpu"
-      }
-      contained_node: {
-        calculator: "SingleFaceGeometryFromDetectionGpu"
-      }
-    }
-  }
 }
 
 node {

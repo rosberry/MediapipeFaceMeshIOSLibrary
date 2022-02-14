@@ -30,9 +30,7 @@ static NSString* const kGraphName = @"face_effect_gpu";
 static const char* kInputStream = "input_video";
 static const char* kMultiFaceGeometryStream = "multi_face_geometry";
 static const char* kVideoQueueLabel = "com.google.mediapipe.example.videoQueue";
-static const char* kUseFaceDetectionInputSourceInputSidePacket = "use_face_detection_input_source";
 
-static const BOOL kUseFaceDetectionInputSource = NO;
 static const int kMatrixTranslationZIndex = 14;
 
 @interface FaceMeshIOSLib () <MPPGraphDelegate>
@@ -76,14 +74,8 @@ static const int kMatrixTranslationZIndex = 14;
   mediapipe::CalculatorGraphConfig config;
   config.ParseFromArray(data.bytes, data.length);
 
-  // Pass the kUseFaceDetectionInputSource flag value as an input side packet into the graph.
-  std::map<std::string, mediapipe::Packet> side_packets;
-  side_packets[kUseFaceDetectionInputSourceInputSidePacket] =
-      mediapipe::MakePacket<bool>(kUseFaceDetectionInputSource);
-
   // Create MediaPipe graph with mediapipe::CalculatorGraphConfig proto object.
   MPPGraph* newGraph = [[MPPGraph alloc] initWithGraphConfig:config];
-  [newGraph addSidePackets:side_packets];
   [newGraph addFrameOutputStream:kMultiFaceGeometryStream outputPacketType:MPPPacketTypeRaw];
   return newGraph;
 }
