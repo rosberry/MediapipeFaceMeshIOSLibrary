@@ -16,6 +16,7 @@ package com.google.mediapipe.examples.hands;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,6 +26,9 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.exifinterface.media.ExifInterface;
+// ContentResolver dependency
+import com.google.mediapipe.formats.proto.LandmarkProto.Landmark;
 import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmark;
 import com.google.mediapipe.solutioncore.CameraInput;
 import com.google.mediapipe.solutioncore.SolutionGlSurfaceView;
@@ -34,6 +38,7 @@ import com.google.mediapipe.solutions.hands.Hands;
 import com.google.mediapipe.solutions.hands.HandsOptions;
 import com.google.mediapipe.solutions.hands.HandsResult;
 import java.io.IOException;
+import java.io.InputStream;
 
 /** Main activity of MediaPipe Hands app. */
 public class MainActivity extends AppCompatActivity {
@@ -59,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
   private ActivityResultLauncher<Intent> videoGetter;
   // Live camera demo UI and camera components.
   private CameraInput cameraInput;
+
   private SolutionGlSurfaceView<HandsResult> glSurfaceView;
 
   @Override
@@ -95,6 +101,43 @@ public class MainActivity extends AppCompatActivity {
     }
   }
 
+  private Bitmap downscaleBitmap(Bitmap originalBitmap) {
+    double aspectRatio = (double) originalBitmap.getWidth() / originalBitmap.getHeight();
+    int width = imageView.getWidth();
+    int height = imageView.getHeight();
+    if (((double) imageView.getWidth() / imageView.getHeight()) > aspectRatio) {
+      width = (int) (height * aspectRatio);
+    } else {
+      height = (int) (width / aspectRatio);
+    }
+    return Bitmap.createScaledBitmap(originalBitmap, width, height, false);
+  }
+
+  private Bitmap rotateBitmap(Bitmap inputBitmap, InputStream imageData) throws IOException {
+    int orientation =
+        new ExifInterface(imageData)
+            .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+    if (orientation == ExifInterface.ORIENTATION_NORMAL) {
+      return inputBitmap;
+    }
+    Matrix matrix = new Matrix();
+    switch (orientation) {
+      case ExifInterface.ORIENTATION_ROTATE_90:
+        matrix.postRotate(90);
+        break;
+      case ExifInterface.ORIENTATION_ROTATE_180:
+        matrix.postRotate(180);
+        break;
+      case ExifInterface.ORIENTATION_ROTATE_270:
+        matrix.postRotate(270);
+        break;
+      default:
+        matrix.postRotate(0);
+    }
+    return Bitmap.createBitmap(
+        inputBitmap, 0, 0, inputBitmap.getWidth(), inputBitmap.getHeight(), matrix, true);
+  }
+
   /** Sets up the UI components for the static image demo. */
   private void setupStaticImageDemoUiComponents() {
     // The Intent to access gallery and read images as bitmap.
@@ -108,10 +151,18 @@ public class MainActivity extends AppCompatActivity {
                   Bitmap bitmap = null;
                   try {
                     bitmap =
-                        MediaStore.Images.Media.getBitmap(
-                            this.getContentResolver(), resultIntent.getData());
+                        downscaleBitmap(
+                            MediaStore.Images.Media.getBitmap(
+                                this.getContentResolver(), resultIntent.getData()));
                   } catch (IOException e) {
                     Log.e(TAG, "Bitmap reading error:" + e);
+                  }
+                  try {
+                    InputStream imageData =
+                        this.getContentResolver().openInputStream(resultIntent.getData());
+                    bitmap = rotateBitmap(bitmap, imageData);
+                  } catch (IOException e) {
+                    Log.e(TAG, "Bitmap rotation error:" + e);
                   }
                   if (bitmap != null) {
                     hands.send(bitmap);
@@ -127,27 +178,27 @@ public class MainActivity extends AppCompatActivity {
             setupStaticImageModePipeline();
           }
           // Reads images from gallery.
-          Intent gallery =
-              new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.INTERNAL_CONTENT_URI);
-          imageGetter.launch(gallery);
+          Intent pickImageIntent = new Intent(Intent.ACTION_PICK);
+          pickImageIntent.setDataAndType(MediaStore.Images.Media.INTERNAL_CONTENT_URI, "image/*");
+          imageGetter.launch(pickImageIntent);
         });
     imageView = new HandsResultImageView(this);
   }
 
-  /** The core MediaPipe Hands setup workflow for its static image mode. */
+  /** Sets up core workflow for static image mode. */
   private void setupStaticImageModePipeline() {
     this.inputSource = InputSource.IMAGE;
-    // Initializes a new MediaPipe Hands instance in the static image mode.
+    // Initializes a new MediaPipe Hands solution instance in the static image mode.
     hands =
         new Hands(
             this,
             HandsOptions.builder()
-                .setMode(HandsOptions.STATIC_IMAGE_MODE)
-                .setMaxNumHands(1)
+                .setStaticImageMode(true)
+                .setMaxNumHands(2)
                 .setRunOnGpu(RUN_ON_GPU)
                 .build());
 
-    // Connects MediaPipe Hands to the user-defined HandsResultImageView.
+    // Connects MediaPipe Hands solution to the user-defined HandsResultImageView.
     hands.setResultListener(
         handsResult -> {
           logWristLandmark(handsResult, /*showPixelValues=*/ true);
@@ -191,9 +242,9 @@ public class MainActivity extends AppCompatActivity {
           stopCurrentPipeline();
           setupStreamingModePipeline(InputSource.VIDEO);
           // Reads video from gallery.
-          Intent gallery =
-              new Intent(Intent.ACTION_PICK, MediaStore.Video.Media.INTERNAL_CONTENT_URI);
-          videoGetter.launch(gallery);
+          Intent pickVideoIntent = new Intent(Intent.ACTION_PICK);
+          pickVideoIntent.setDataAndType(MediaStore.Video.Media.INTERNAL_CONTENT_URI, "video/*");
+          videoGetter.launch(pickVideoIntent);
         });
   }
 
@@ -210,26 +261,24 @@ public class MainActivity extends AppCompatActivity {
         });
   }
 
-  /** The core MediaPipe Hands setup workflow for its streaming mode. */
+  /** Sets up core workflow for streaming mode. */
   private void setupStreamingModePipeline(InputSource inputSource) {
     this.inputSource = inputSource;
-    // Initializes a new MediaPipe Hands instance in the streaming mode.
+    // Initializes a new MediaPipe Hands solution instance in the streaming mode.
     hands =
         new Hands(
             this,
             HandsOptions.builder()
-                .setMode(HandsOptions.STREAMING_MODE)
-                .setMaxNumHands(1)
+                .setStaticImageMode(false)
+                .setMaxNumHands(2)
                 .setRunOnGpu(RUN_ON_GPU)
                 .build());
     hands.setErrorListener((message, e) -> Log.e(TAG, "MediaPipe Hands error:" + message));
 
     if (inputSource == InputSource.CAMERA) {
-      // Initializes a new CameraInput instance and connects it to MediaPipe Hands.
       cameraInput = new CameraInput(this);
       cameraInput.setNewFrameListener(textureFrame -> hands.send(textureFrame));
     } else if (inputSource == InputSource.VIDEO) {
-      // Initializes a new VideoInput instance and connects it to MediaPipe Hands.
       videoInput = new VideoInput(this);
       videoInput.setNewFrameListener(textureFrame -> hands.send(textureFrame));
     }
@@ -288,7 +337,11 @@ public class MainActivity extends AppCompatActivity {
   }
 
   private void logWristLandmark(HandsResult result, boolean showPixelValues) {
-    NormalizedLandmark wristLandmark = Hands.getHandLandmark(result, 0, HandLandmark.WRIST);
+    if (result.multiHandLandmarks().isEmpty()) {
+      return;
+    }
+    NormalizedLandmark wristLandmark =
+        result.multiHandLandmarks().get(0).getLandmarkList().get(HandLandmark.WRIST);
     // For Bitmaps, show the pixel values. For texture inputs, show the normalized coordinates.
     if (showPixelValues) {
       int width = result.inputBitmap().getWidth();
@@ -305,5 +358,16 @@ public class MainActivity extends AppCompatActivity {
               "MediaPipe Hand wrist normalized coordinates (value range: [0, 1]): x=%f, y=%f",
               wristLandmark.getX(), wristLandmark.getY()));
     }
+    if (result.multiHandWorldLandmarks().isEmpty()) {
+      return;
+    }
+    Landmark wristWorldLandmark =
+        result.multiHandWorldLandmarks().get(0).getLandmarkList().get(HandLandmark.WRIST);
+    Log.i(
+        TAG,
+        String.format(
+            "MediaPipe Hand wrist world coordinates (in meters with the origin at the hand's"
+                + " approximate geometric center): x=%f m, y=%f m, z=%f m",
+            wristWorldLandmark.getX(), wristWorldLandmark.getY(), wristWorldLandmark.getZ()));
   }
 }

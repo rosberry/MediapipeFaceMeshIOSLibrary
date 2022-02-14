@@ -17,12 +17,20 @@ package(default_visibility = ["//visibility:public"])
 licenses(["notice"])
 
 android_library(
+    name = "solution_info",
+    srcs = ["SolutionInfo.java"],
+    deps = [
+        "//third_party:autovalue",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+android_library(
     name = "solution_base",
     srcs = glob(
         ["*.java"],
         exclude = [
             "CameraInput.java",
-            "ResultGlBoundary.java",
             "ResultGlRenderer.java",
             "SolutionGlSurfaceView.java",
             "SolutionGlSurfaceViewRenderer.java",
@@ -31,6 +39,7 @@ android_library(
     ),
     visibility = ["//visibility:public"],
     deps = [
+        ":logging",
         "//mediapipe/java/com/google/mediapipe/framework:android_framework",
         "//mediapipe/java/com/google/mediapipe/glutil",
         "//third_party:autovalue",
@@ -67,7 +76,6 @@ android_library(
 android_library(
     name = "solution_rendering",
     srcs = [
-        "ResultGlBoundary.java",
         "ResultGlRenderer.java",
         "SolutionGlSurfaceView.java",
         "SolutionGlSurfaceViewRenderer.java",
@@ -78,6 +86,18 @@ android_library(
         "//mediapipe/java/com/google/mediapipe/components:android_components",
         "//mediapipe/java/com/google/mediapipe/framework:android_framework",
         "//mediapipe/java/com/google/mediapipe/glutil",
+        "@maven//:com_google_guava_guava",
+    ],
+)
+
+android_library(
+    name = "logging",
+    srcs = glob(
+        ["logging/*.java"],
+    ),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":solution_info",
         "//third_party:autovalue",
         "@maven//:com_google_guava_guava",
     ],
@@ -91,6 +111,8 @@ cc_binary(
     # TODO: Add more calculators to support other top-level solutions.
     deps = [
         "//mediapipe/java/com/google/mediapipe/framework/jni:mediapipe_framework_jni",
+        "//mediapipe/modules/face_detection:face_detection_full_range_image",
+        "//mediapipe/modules/face_detection:face_detection_short_range_image",
         "//mediapipe/modules/face_landmark:face_landmark_front_cpu_image",
         "//mediapipe/modules/face_landmark:face_landmark_front_gpu_image",
         "//mediapipe/modules/hand_landmark:hand_landmark_tracking_cpu_image",
@@ -110,6 +132,6 @@ load("//mediapipe/java/com/google/mediapipe:mediapipe_aar.bzl", "mediapipe_aar")
 
 mediapipe_aar(
     name = "solution_core",
-    srcs = glob(["*.java"]),
+    srcs = glob(["**/*.java"]),
     gen_libmediapipe = False,
 )

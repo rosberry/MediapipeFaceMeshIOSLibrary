@@ -15,9 +15,7 @@
 package com.google.mediapipe.examples.hands;
 
 import android.opengl.GLES20;
-import android.opengl.Matrix;
 import com.google.mediapipe.formats.proto.LandmarkProto.NormalizedLandmark;
-import com.google.mediapipe.solutioncore.ResultGlBoundary;
 import com.google.mediapipe.solutioncore.ResultGlRenderer;
 import com.google.mediapipe.solutions.hands.Hands;
 import com.google.mediapipe.solutions.hands.HandsResult;
@@ -26,26 +24,36 @@ import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.util.List;
 
-/** A custom implementation of {@link ResultGlRenderer} to render MediaPope Hands results. */
+/** A custom implementation of {@link ResultGlRenderer} to render {@link HandsResult}. */
 public class HandsResultGlRenderer implements ResultGlRenderer<HandsResult> {
   private static final String TAG = "HandsResultGlRenderer";
 
-  private static final float CONNECTION_THICKNESS = 20.0f;
+  private static final float[] LEFT_HAND_CONNECTION_COLOR = new float[] {0.2f, 1f, 0.2f, 1f};
+  private static final float[] RIGHT_HAND_CONNECTION_COLOR = new float[] {1f, 0.2f, 0.2f, 1f};
+  private static final float CONNECTION_THICKNESS = 25.0f;
+  private static final float[] LEFT_HAND_HOLLOW_CIRCLE_COLOR = new float[] {0.2f, 1f, 0.2f, 1f};
+  private static final float[] RIGHT_HAND_HOLLOW_CIRCLE_COLOR = new float[] {1f, 0.2f, 0.2f, 1f};
+  private static final float HOLLOW_CIRCLE_RADIUS = 0.01f;
+  private static final float[] LEFT_HAND_LANDMARK_COLOR = new float[] {1f, 0.2f, 0.2f, 1f};
+  private static final float[] RIGHT_HAND_LANDMARK_COLOR = new float[] {0.2f, 1f, 0.2f, 1f};
+  private static final float LANDMARK_RADIUS = 0.008f;
+  private static final int NUM_SEGMENTS = 120;
   private static final String VERTEX_SHADER =
-      "uniform mat4 uTransformMatrix;\n"
+      "uniform mat4 uProjectionMatrix;\n"
           + "attribute vec4 vPosition;\n"
           + "void main() {\n"
-          + "  gl_Position = uTransformMatrix * vPosition;\n"
+          + "  gl_Position = uProjectionMatrix * vPosition;\n"
           + "}";
   private static final String FRAGMENT_SHADER =
       "precision mediump float;\n"
+          + "uniform vec4 uColor;\n"
           + "void main() {\n"
-          + "  gl_FragColor = vec4(0, 1, 0, 1);\n"
+          + "  gl_FragColor = uColor;\n"
           + "}";
   private int program;
   private int positionHandle;
-  private int transformMatrixHandle;
-  private final float[] transformMatrix = new float[16];
+  private int projectionMatrixHandle;
+  private int colorHandle;
 
   private int loadShader(int type, String shaderCode) {
     int shader = GLES20.glCreateShader(type);
@@ -63,37 +71,42 @@ public class HandsResultGlRenderer implements ResultGlRenderer<HandsResult> {
     GLES20.glAttachShader(program, fragmentShader);
     GLES20.glLinkProgram(program);
     positionHandle = GLES20.glGetAttribLocation(program, "vPosition");
-    transformMatrixHandle = GLES20.glGetUniformLocation(program, "uTransformMatrix");
+    projectionMatrixHandle = GLES20.glGetUniformLocation(program, "uProjectionMatrix");
+    colorHandle = GLES20.glGetUniformLocation(program, "uColor");
   }
 
   @Override
-  public void renderResult(HandsResult result, ResultGlBoundary boundary) {
+  public void renderResult(HandsResult result, float[] projectionMatrix) {
     if (result == null) {
       return;
     }
     GLES20.glUseProgram(program);
-    // Sets the transform matrix to align the result rendering with the scaled output texture.
-    // Also flips the rendering vertically since OpenGL assumes the coordinate origin is at the
-    // bottom-left corner, whereas MediaPipe landmark data assumes the coordinate origin is at the
-    // top-left corner.
-    Matrix.setIdentityM(transformMatrix, 0);
-    Matrix.scaleM(
-        transformMatrix,
-        0,
-        2 / (boundary.right() - boundary.left()),
-        -2 / (boundary.top() - boundary.bottom()),
-        1.0f);
-    GLES20.glUniformMatrix4fv(transformMatrixHandle, 1, false, transformMatrix, 0);
+    GLES20.glUniformMatrix4fv(projectionMatrixHandle, 1, false, projectionMatrix, 0);
     GLES20.glLineWidth(CONNECTION_THICKNESS);
 
     int numHands = result.multiHandLandmarks().size();
     for (int i = 0; i < numHands; ++i) {
-      drawLandmarks(result.multiHandLandmarks().get(i).getLandmarkList());
+      boolean isLeftHand = result.multiHandedness().get(i).getLabel().equals("Left");
+      drawConnections(
+          result.multiHandLandmarks().get(i).getLandmarkList(),
+          isLeftHand ? LEFT_HAND_CONNECTION_COLOR : RIGHT_HAND_CONNECTION_COLOR);
+      for (NormalizedLandmark landmark : result.multiHandLandmarks().get(i).getLandmarkList()) {
+        // Draws the landmark.
+        drawCircle(
+            landmark.getX(),
+            landmark.getY(),
+            isLeftHand ? LEFT_HAND_LANDMARK_COLOR : RIGHT_HAND_LANDMARK_COLOR);
+        // Draws a hollow circle around the landmark.
+        drawHollowCircle(
+            landmark.getX(),
+            landmark.getY(),
+            isLeftHand ? LEFT_HAND_HOLLOW_CIRCLE_COLOR : RIGHT_HAND_HOLLOW_CIRCLE_COLOR);
+      }
     }
   }
 
   /**
-   * Calls this to delete the shader program.
+   * Deletes the shader program.
    *
    * <p>This is only necessary if one wants to release the program while keeping the context around.
    */
@@ -101,16 +114,12 @@ public class HandsResultGlRenderer implements ResultGlRenderer<HandsResult> {
     GLES20.glDeleteProgram(program);
   }
 
-  // TODO: Better hand landmark and hand connection drawing.
-  private void drawLandmarks(List<NormalizedLandmark> handLandmarkList) {
+  private void drawConnections(List<NormalizedLandmark> handLandmarkList, float[] colorArray) {
+    GLES20.glUniform4fv(colorHandle, 1, colorArray, 0);
     for (Hands.Connection c : Hands.HAND_CONNECTIONS) {
-      float[] vertex = new float[4];
       NormalizedLandmark start = handLandmarkList.get(c.start());
-      vertex[0] = normalizedLandmarkValue(start.getX());
-      vertex[1] = normalizedLandmarkValue(start.getY());
       NormalizedLandmark end = handLandmarkList.get(c.end());
-      vertex[2] = normalizedLandmarkValue(end.getX());
-      vertex[3] = normalizedLandmarkValue(end.getY());
+      float[] vertex = {start.getX(), start.getY(), end.getX(), end.getY()};
       FloatBuffer vertexBuffer =
           ByteBuffer.allocateDirect(vertex.length * 4)
               .order(ByteOrder.nativeOrder())
@@ -123,9 +132,50 @@ public class HandsResultGlRenderer implements ResultGlRenderer<HandsResult> {
     }
   }
 
-  // Normalizes the value from the landmark value range:[0, 1] to the standard OpenGL coordinate
-  // value range: [-1, 1].
-  private float normalizedLandmarkValue(float value) {
-    return value * 2 - 1;
+  private void drawCircle(float x, float y, float[] colorArray) {
+    GLES20.glUniform4fv(colorHandle, 1, colorArray, 0);
+    int vertexCount = NUM_SEGMENTS + 2;
+    float[] vertices = new float[vertexCount * 3];
+    vertices[0] = x;
+    vertices[1] = y;
+    vertices[2] = 0;
+    for (int i = 1; i < vertexCount; i++) {
+      float angle = 2.0f * i * (float) Math.PI / NUM_SEGMENTS;
+      int currentIndex = 3 * i;
+      vertices[currentIndex] = x + (float) (LANDMARK_RADIUS * Math.cos(angle));
+      vertices[currentIndex + 1] = y + (float) (LANDMARK_RADIUS * Math.sin(angle));
+      vertices[currentIndex + 2] = 0;
+    }
+    FloatBuffer vertexBuffer =
+        ByteBuffer.allocateDirect(vertices.length * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .put(vertices);
+    vertexBuffer.position(0);
+    GLES20.glEnableVertexAttribArray(positionHandle);
+    GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer);
+    GLES20.glDrawArrays(GLES20.GL_TRIANGLE_FAN, 0, vertexCount);
+  }
+
+  private void drawHollowCircle(float x, float y, float[] colorArray) {
+    GLES20.glUniform4fv(colorHandle, 1, colorArray, 0);
+    int vertexCount = NUM_SEGMENTS + 1;
+    float[] vertices = new float[vertexCount * 3];
+    for (int i = 0; i < vertexCount; i++) {
+      float angle = 2.0f * i * (float) Math.PI / NUM_SEGMENTS;
+      int currentIndex = 3 * i;
+      vertices[currentIndex] = x + (float) (HOLLOW_CIRCLE_RADIUS * Math.cos(angle));
+      vertices[currentIndex + 1] = y + (float) (HOLLOW_CIRCLE_RADIUS * Math.sin(angle));
+      vertices[currentIndex + 2] = 0;
+    }
+    FloatBuffer vertexBuffer =
+        ByteBuffer.allocateDirect(vertices.length * 4)
+            .order(ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .put(vertices);
+    vertexBuffer.position(0);
+    GLES20.glEnableVertexAttribArray(positionHandle);
+    GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer);
+    GLES20.glDrawArrays(GLES20.GL_LINE_STRIP, 0, vertexCount);
   }
 }
