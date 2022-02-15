@@ -15,10 +15,10 @@ node {
   output_stream: "NORM_FILTERED_LANDMARKS:filtered_landmarks"
   node_options: {
     [type.googleapis.com/mediapipe.LandmarksSmoothingCalculatorOptions] {
-      velocity_filter: {
-        window_size: 5
-        velocity_scale: 60.0
-      }
+       one_euro_filter {
+         min_cutoff: 0.001
+         beta: 60.0
+       }
     }
   }
 }
