@@ -1,0 +1,10 @@
+DEST='../selfie.ar.client/Frameworks/'
+function build() { 
+  rm -r frameworkbuild && 
+  ./BUILD_FACE_MESH_XCFRAMEWORK.sh && 
+  rm -rf ../selfie.ar.client/frameworkbuild &&
+  rm -rf $DEST/* &&
+  cp -r frameworkbuild/FaceMeshIOSLibFramework/xcframework/FaceMeshIOSLibFramework.xcframework $DEST
+}
+
+build < build_stdin

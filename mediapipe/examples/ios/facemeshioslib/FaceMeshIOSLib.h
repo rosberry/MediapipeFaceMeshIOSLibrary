@@ -33,6 +33,11 @@
 @property (nonatomic) float rotation;
 @end
 
+typedef NS_ENUM(NSUInteger, GraphType) {
+  kFaceGeometry,
+  kSelfieSegmentation
+};
+
 @protocol FaceMeshIOSLibDelegate <NSObject>
 @optional
 - (void)didRecieveMultiFaceGeometry:(NSArray <FaceGeometryWrapper *>*)multiFaceGeometry;
@@ -44,10 +49,12 @@
  * Array of faces, with faces represented by arrays of face landmarks 
 */
 - (void)didReceiveFaceBoxes:(NSArray <FaceMeshIOSLibNormalizedRect *>*)faces;
+
+- (void)didReceiveSelfiSegmentationMask:(CVPixelBufferRef)pixelBuffer;
 @end
 
 @interface FaceMeshIOSLib : NSObject
-- (instancetype)init;
+- (instancetype)init:(GraphType)graphType;
 - (void)startGraph;
 - (void)processVideoFrame:(CVPixelBufferRef)imageBuffe;
 @property(weak, nonatomic) id<FaceMeshIOSLibDelegate> delegate;

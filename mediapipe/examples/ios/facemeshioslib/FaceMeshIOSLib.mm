@@ -25,10 +25,12 @@
 #include "mediapipe/framework/calculator_framework.h"
 #include "mediapipe/modules/face_geometry/protos/face_geometry.pb.h"
 
-static NSString* const kGraphName = @"face_effect_gpu";
+static NSString* const kFaceGeometryGraphName = @"face_effect_gpu";
+static NSString* const kSelfieSegmentationGraphName = @"selfie_segmentation_gpu";
 
 static const char* kInputStream = "input_video";
 static const char* kMultiFaceGeometryStream = "multi_face_geometry";
+static const char* kMultiSelfieSegmentationOutputStream = "output_video";
 static const char* kVideoQueueLabel = "com.google.mediapipe.example.videoQueue";
 
 static const int kMatrixTranslationZIndex = 14;
@@ -44,20 +46,38 @@ static const int kMatrixTranslationZIndex = 14;
 @implementation FaceMeshIOSLib {
 }
 
-#pragma mark - Cleanup methods
-
-- (void)dealloc {
-  self.graph.delegate = nil;
-  [self.graph cancel];
-  // Ignore errors since we're cleaning up.
-  [self.graph closeAllInputStreamsWithError:nil];
-  [self.graph waitUntilDoneWithError:nil];
+- (instancetype)init:(GraphType)graphType {
+  self = [super init];
+  if (!self) {
+    return self;
+  }
+  self.graph = [[self class] loadGraphFromResource:graphType];
+  self.graph.delegate = self;
+  // Set maxFramesInFlight to a small value to avoid memory contention for real-time processing.
+  // self.graph.maxFramesInFlight = 1;
+  return self;
 }
 
-#pragma mark - MediaPipe graph methods
+- (void)startGraph {
+  // Start running self.graph.
+  NSError* error;
+  if (![self.graph startWithError:&error]) {
+    NSLog(@"Failed to start graph: %@", error);
+  }
+}
 
-+ (MPPGraph*)loadGraphFromResource:(NSString*)resource {
++ (NSString*)graphName:(GraphType)graphType {
+  switch (graphType) {
+  case kFaceGeometry:
+    return kFaceGeometryGraphName;
+  case kSelfieSegmentation:
+    return kSelfieSegmentationGraphName;
+  }
+}
+
++ (MPPGraph*)loadGraphFromResource:(GraphType)graphType {
   // Load the graph config resource.
+  NSString *resource = [FaceMeshIOSLib graphName:graphType];
   NSError* configLoadError = nil;
   NSBundle* bundle = [NSBundle bundleForClass:[self class]];
   if (!resource || resource.length == 0) {
@@ -76,31 +96,23 @@ static const int kMatrixTranslationZIndex = 14;
 
   // Create MediaPipe graph with mediapipe::CalculatorGraphConfig proto object.
   MPPGraph* newGraph = [[MPPGraph alloc] initWithGraphConfig:config];
-  [newGraph addFrameOutputStream:kMultiFaceGeometryStream outputPacketType:MPPPacketTypeRaw];
+  switch (graphType) {
+  case kFaceGeometry:
+    [newGraph addFrameOutputStream:kMultiFaceGeometryStream outputPacketType:MPPPacketTypeRaw];
+    break;
+  case kSelfieSegmentation:
+    [newGraph addFrameOutputStream:kMultiSelfieSegmentationOutputStream outputPacketType:MPPPacketTypePixelBuffer];
+    break;
+  } 
   return newGraph;
 }
 
-#pragma mark - UIViewController methods
-
-- (instancetype)init {
-  self = [super init];
-  if (!self) {
-    return self;
-  }
-
-  self.graph = [[self class] loadGraphFromResource:kGraphName];
-  self.graph.delegate = self;
-  // Set maxFramesInFlight to a small value to avoid memory contention for real-time processing.
-  // self.graph.maxFramesInFlight = 1;
-  return self;
-}
-
-- (void)startGraph {
-  // Start running self.graph.
-  NSError* error;
-  if (![self.graph startWithError:&error]) {
-    NSLog(@"Failed to start graph: %@", error);
-  }
+- (void)dealloc {
+  self.graph.delegate = nil;
+  [self.graph cancel];
+  // Ignore errors since we're cleaning up.
+  [self.graph closeAllInputStreamsWithError:nil];
+  [self.graph waitUntilDoneWithError:nil];
 }
 
 #pragma mark - MPPGraphDelegate methods
@@ -109,6 +121,14 @@ static const int kMatrixTranslationZIndex = 14;
 - (void)mediapipeGraph:(MPPGraph*)graph
     didOutputPixelBuffer:(CVPixelBufferRef)pixelBuffer
               fromStream:(const std::string&)streamName {
+  if (streamName == kMultiSelfieSegmentationOutputStream) {
+    // Display the captured image on the screen.
+    CVPixelBufferRetain(pixelBuffer);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.delegate didReceiveSelfiSegmentationMask:pixelBuffer];
+        CVPixelBufferRelease(pixelBuffer);
+      });
+  }
 }
 
 // Receives a raw packet from the MediaPipe graph. Invoked on a MediaPipe worker thread.
@@ -165,19 +185,13 @@ static const int kMatrixTranslationZIndex = 14;
 
 - (void)processVideoFrame:(CVPixelBufferRef)imageBuffer {
   const auto ts =
-      mediapipe::Timestamp(self.timestamp++ * mediapipe::Timestamp::kTimestampUnitsPerSecond);
+    mediapipe::Timestamp(self.timestamp++ * mediapipe::Timestamp::kTimestampUnitsPerSecond);
   NSError* err = nil;
 
   auto sent = [self.graph sendPixelBuffer:imageBuffer
-                                        intoStream:kInputStream
-                                        packetType:MPPPacketTypePixelBuffer
-                                         timestamp:ts];
-//                                    allowOverwrite:NO
-//                                             error:&err];
-
-//  if (err) {
-//    NSLog(@"sendPixelBuffer error: %@", err);
-//  }
+                               intoStream:kInputStream
+                               packetType:MPPPacketTypePixelBuffer
+                                timestamp:ts];
 }
 
 @end
