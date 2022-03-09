@@ -1,17 +1,3 @@
-# Copyright 2019 The MediaPipe Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application", "ios_framework")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 load(
@@ -28,66 +14,10 @@ IOS_FAMILIES = [
     "iphone",
     "ipad",
 ]
-
-# Build this .ipa with:
-# bazel build --config=ios_arm64 mediapipe/examples/facial_search/ios:FacialSearchGpuApp
-ios_application(
-    name = "FacialSearchGpuApp",
-    app_icons = ["//mediapipe/examples/ios/common:AppIcon"],
-    bundle_id = BUNDLE_ID_PREFIX + ".FacialSearchGpu",
-    families = IOS_FAMILIES,
-    infoplists = [
-        "//mediapipe/examples/ios/common:Info.plist",
-        "Info.plist",
-    ],
-    minimum_os_version = MIN_IOS_VERSION,
-    provisioning_profile = example_provisioning(),
-    deps = [":FacialSearchGpuAppLibrary"],
-)
-
-swift_library(
-    name = "FacialSearchGpuAppLibrary",
-    srcs = [
-        "AppDelegate.swift",
-        "Cameras.swift",
-        "DotDot.swift",
-        "FacialSearchViewController.swift",
-    ],
-    data = ["Base.lproj/Main.storyboard"],
-    deps = [
-        ":ObjcppLib",
-        "@ios_opencv//:OpencvFramework",
-    ],
-)
-
 FRAMEWORK_HEADERS = [
     "FaceMeshIOSLib.h",
 ]
 
-# Using Mediapipe in an iOS Swift app (without Tulsi)
-# Create new Swift app: XCode: File > New > Project...
-# Select iOS > "Single View App" > Next
-# Select Language: Swift > Next > Create
-# Delete these files from the new project: (Move to Trash)
-# * AppDelegate.swift
-# * ViewController.swift
-# Copy these files to your app: (if asked, do not create a bridging header)
-# * AppDelegate.swift
-# * Cameras.swift
-# * DotDot.swift
-# * FacialSearchViewController.swift
-# Edit your app's Info.plist:
-# * Create key "NSCameraUsageDescription" with value: "This app uses the camera to demonstrate live video processing."
-# Edit your Main.storyboard's custom class, setting it to FacialSearchViewController (in the Identity inspector)
-# Run: bazel build --copt=-fembed-bitcode --apple_bitcode=embedded --config=ios_arm64 mediapipe/examples/facial_search/ios:FacialSearch (replace FacialSearch path/framework name with framework name)
-# (some linker warnings about global C++ symbols may appear)
-# Run: ./mediapipe/examples/facial_search/ios/patch_ios_framework.sh bazel-bin/mediapipe/examples/facial_search/ios/FacialSearch.zip ObjcppLib.h
-# Note: append the contents of FRAMEWORK_HEADERS separated by spaces (here: ObjcppLib.h).
-# Run: open bazel-bin/mediapipe/examples/facial_search/ios and drag and drop
-# the FacialSearch.framework folder into your app files (check: Copy items if needed > Finish)
-# Make sure the framework gets embedded into the app:
-# In General > Frameworks, Libraries, and Embedded Content set FacialSearch.framework to "Embed & Sign".
-# Connect your device and run.
 ios_framework(
     name = "FaceMeshIOSLibFramework",
     hdrs = FRAMEWORK_HEADERS,
@@ -96,21 +26,17 @@ ios_framework(
     families = IOS_FAMILIES,
     infoplists = [
         "//mediapipe/examples/ios/common:Info.plist",
-#        "Info.plist",
     ],
     minimum_os_version = MIN_IOS_VERSION,
     visibility = ["//visibility:public"],
     deps = [
         ":FaceMeshIOSLib",
         "@ios_opencv//:OpencvFramework",
-# 	"//conditions:default": [
-	"//mediapipe/framework/formats:matrix_data_cc_proto",
+	      "//mediapipe/framework/formats:matrix_data_cc_proto",
         "//mediapipe/graphs/face_effect:face_effect_gpu_deps",
         "//mediapipe/modules/face_geometry/protos:face_geometry_cc_proto",
-#        ],
     ],
 )
-
 
 # amalgamate stuff in from the facemeshgpu iOS example
 objc_library(
@@ -121,35 +47,34 @@ objc_library(
     hdrs = FRAMEWORK_HEADERS,
     copts = ["-std=c++17"],  # https://github.com/google/mediapipe/issues/2275#issuecomment-877145926
     data = [
-        "//mediapipe/graphs/face_mesh:pure_face_mesh_mobile_gpu.binarypb",
-        "//mediapipe/modules/face_detection:face_detection_short_range.tflite",
-	        "//mediapipe/graphs/face_effect:face_effect_gpu.binarypb",
-        "//mediapipe/graphs/face_effect/data:facepaint.pngblob",
-        "//mediapipe/graphs/face_effect/data:glasses.binarypb",
-        "//mediapipe/graphs/face_effect/data:glasses.pngblob",
-        # "//mediapipe/modules/face_detection:face_detection_front.tflite",
-        "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata.binarypb",
-        "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata_detection.binarypb",
-        "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata_landmarks.binarypb",
-        "//mediapipe/modules/face_landmark:face_landmark.tflite",
-
+    "//mediapipe/graphs/face_mesh:pure_face_mesh_mobile_gpu.binarypb",
+    "//mediapipe/modules/face_detection:face_detection_short_range.tflite",
+    "//mediapipe/graphs/face_effect:face_effect_gpu.binarypb",
+    "//mediapipe/graphs/face_effect/data:facepaint.pngblob",
+    "//mediapipe/graphs/face_effect/data:glasses.binarypb",
+    "//mediapipe/graphs/face_effect/data:glasses.pngblob",
+    "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata.binarypb",
+    "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata_detection.binarypb",
+    "//mediapipe/modules/face_geometry/data:geometry_pipeline_metadata_landmarks.binarypb",
+    "//mediapipe/modules/face_landmark:face_landmark.tflite",
+    "//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu.binarypb",
+    "//mediapipe/modules/selfie_segmentation:selfie_segmentation.tflite",
     ],
     deps = [
         "//mediapipe/objc:mediapipe_framework_ios",
         "//mediapipe/objc:mediapipe_input_sources_ios",
         "//mediapipe/calculators/core:packet_presence_calculator",
-#        "//mediapipe/objc:mediapipe_layer_renderer", # no need for layer renderer since I don't render
+        "//mediapipe/examples/ios/common:CommonMediaPipeAppLibrary",
     ] + select({
-#        "//mediapipe:ios_i386": [],
-#        "//mediapipe:ios_x86_64": [],
+        # "//mediapipe:ios_i386": [],
+        # "//mediapipe:ios_x86_64": [],
         "//conditions:default": [
             "//mediapipe/graphs/face_mesh:mobile_calculators",
             "//mediapipe/framework/formats:landmark_cc_proto",
             "//mediapipe/framework/formats:matrix_data_cc_proto",
             "//mediapipe/graphs/face_effect:face_effect_gpu_deps",
             "//mediapipe/modules/face_geometry/protos:face_geometry_cc_proto",
-#            "//mediapipe/examples/facial_search/graphs:gpu_calculators",
-#            "//mediapipe/examples/facial_search:embeddings_database",
+            "//mediapipe/graphs/selfie_segmentation:selfie_segmentation_gpu_deps",
         ],
     }),
 )
