@@ -126,10 +126,8 @@ static const int kMatrixTranslationZIndex = 14;
   if (streamName == kMultiSelfieSegmentationOutputStream) {
     // Display the captured image on the screen.
     CVPixelBufferRetain(pixelBuffer);
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self.delegate didReceiveSelfiSegmentationMask:pixelBuffer];
-        CVPixelBufferRelease(pixelBuffer);
-      });
+    [self.delegate didReceiveSelfiSegmentationMask:pixelBuffer];
+    CVPixelBufferRelease(pixelBuffer);
   }
 }
 
