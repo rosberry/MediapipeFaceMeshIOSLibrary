@@ -112,7 +112,9 @@ static const int kMatrixTranslationZIndex = 14;
   [self.graph cancel];
   // Ignore errors since we're cleaning up.
   [self.graph closeAllInputStreamsWithError:nil];
-  [self.graph waitUntilDoneWithError:nil];
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+      [self.graph waitUntilDoneWithError:nil];
+    });
 }
 
 #pragma mark - MPPGraphDelegate methods
