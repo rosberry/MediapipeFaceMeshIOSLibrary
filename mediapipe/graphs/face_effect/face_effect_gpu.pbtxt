@@ -11,6 +11,8 @@ input_stream: "input_video"
 # (std::vector<face_geometry::FaceGeometry>)
 output_stream: "multi_face_geometry"
 
+# Landmark presence (needed because whole graph won't emit anything if no faces are detected)
+output_stream: "landmark_presence"
 
 # Generates an environment that describes the current virtual scene.
 node {
@@ -48,3 +50,12 @@ node {
   output_stream: "throttled_input_video"
 }
 
+# See this thread here https://github.com/google/mediapipe/issues/850#issuecomment-683268033
+# "if there are no packets in the corresponding output stream, it is designed to wait until the packet comes in"
+# That means that we'd get absolutely nothing to work with and won't know if our frame had anythin!
+# So we add PacketPresenceCalculator
+node {
+  calculator: "PacketPresenceCalculator"
+  input_stream: "PACKET:multi_face_geometry"
+  output_stream: "PRESENCE:landmark_presence"
+}

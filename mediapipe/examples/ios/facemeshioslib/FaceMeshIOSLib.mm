@@ -29,6 +29,7 @@ static NSString* const kGraphName = @"face_effect_gpu";
 
 static const char* kInputStream = "input_video";
 static const char* kMultiFaceGeometryStream = "multi_face_geometry";
+static const char* kLandmarkPresenceOutputStream = "landmark_presence";
 static const char* kVideoQueueLabel = "com.google.mediapipe.example.videoQueue";
 
 static const int kMatrixTranslationZIndex = 14;
@@ -77,6 +78,12 @@ static const int kMatrixTranslationZIndex = 14;
   // Create MediaPipe graph with mediapipe::CalculatorGraphConfig proto object.
   MPPGraph* newGraph = [[MPPGraph alloc] initWithGraphConfig:config];
   [newGraph addFrameOutputStream:kMultiFaceGeometryStream outputPacketType:MPPPacketTypeRaw];
+
+  // The Presence Detection stream
+  // This is with much much many many thanks to @homuler here: https://github.com/google/mediapipe/issues/850#issuecomment-683268033
+  [newGraph addFrameOutputStream:kLandmarkPresenceOutputStream
+                           outputPacketType:MPPPacketTypeRaw];
+
   return newGraph;
 }
 
@@ -121,7 +128,7 @@ static const int kMatrixTranslationZIndex = 14;
           fromStream:(const std::string&)streamName {
 	if (streamName == kMultiFaceGeometryStream) {
 		if (packet.IsEmpty()) {
-		      	NSLog(@"[TS:%lld] No face geometry", packet.Timestamp().Value());
+		  NSLog(@"[TS:%lld] invalid packet (No face geometry)", packet.Timestamp().Value());
 			return;
 		}
 
@@ -160,7 +167,23 @@ static const int kMatrixTranslationZIndex = 14;
 			[output addObject: wrapper];
 		}
 		[self.delegate didRecieveMultiFaceGeometry:output];
-	}
+	 } else if (streamName == kLandmarkPresenceOutputStream) {
+    bool is_landmark_present = true;
+    if (packet.IsEmpty()) {
+      is_landmark_present = false;
+    }
+    else {
+      is_landmark_present = packet.Get<bool>();
+    }
+    if (!is_landmark_present) {
+      NSLog(@"Landmarks not present");
+      // No landmarks are present, we call our delegate with empty faces to make our protocol consistent with number of frames
+      [self.delegate didRecieveMultiFaceGeometry:@[]];
+    }
+  }
+  else {
+    NSLog(@"Unknown %@ packet with stream name %s", packet.IsEmpty() ? @"EMPTY" : @"NON-EMPTY",streamName.c_str());
+  }
 }
 
 - (void)processVideoFrame:(CVPixelBufferRef)imageBuffer {
