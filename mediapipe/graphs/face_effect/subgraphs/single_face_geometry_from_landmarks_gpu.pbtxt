@@ -33,12 +33,24 @@ node {
   }
 }
 
+# Defines side packets for further use in the graph.
+node {
+  calculator: "ConstantSidePacketCalculator"
+  output_side_packet: "PACKET:with_attention"
+  node_options: {
+    [type.googleapis.com/mediapipe.ConstantSidePacketCalculatorOptions]: {
+      packet { bool_value: true }
+    }
+  }
+}
+
 # Subgraph that detects faces and corresponding landmarks using the face
 # landmark pipeline.
 node {
   calculator: "FaceLandmarkFrontGpu"
   input_stream: "IMAGE:input_image"
   input_side_packet: "NUM_FACES:num_faces"
+  input_side_packet: "WITH_ATTENTION:with_attention"
   output_stream: "LANDMARKS:multi_face_landmarks"
 }
 
