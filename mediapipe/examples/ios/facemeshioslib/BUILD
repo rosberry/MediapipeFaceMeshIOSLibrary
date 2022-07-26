@@ -91,7 +91,7 @@ FRAMEWORK_HEADERS = [
 ios_framework(
     name = "FaceMeshIOSLibFramework",
     hdrs = FRAMEWORK_HEADERS,
-    bundle_id = BUNDLE_ID_PREFIX + ". FaceMeshIOSLibFramework",
+    bundle_id = BUNDLE_ID_PREFIX + ".FaceMeshIOSLibFramework",
     bundle_name = "FaceMeshIOSLibFramework",
     families = IOS_FAMILIES,
     infoplists = [
