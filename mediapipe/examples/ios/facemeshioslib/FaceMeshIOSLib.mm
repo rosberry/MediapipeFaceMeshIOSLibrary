@@ -176,7 +176,6 @@ static const int kMatrixTranslationZIndex = 14;
       is_landmark_present = packet.Get<bool>();
     }
     if (!is_landmark_present) {
-      NSLog(@"Landmarks not present");
       // No landmarks are present, we call our delegate with empty faces to make our protocol consistent with number of frames
       [self.delegate didRecieveMultiFaceGeometry:@[]];
     }
